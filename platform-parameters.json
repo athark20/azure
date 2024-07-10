@@ -1,0 +1,70 @@
+{
+	"$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"setEnv": {
+      			"value": "d"
+    		},
+		"location": {
+			"value": "eastus"
+		},
+		"productname": {
+			"value": "rm"
+		},
+		"subproductname": {
+			"value": "optimizer"
+		},
+		"storageaccount": {
+			"value": [
+				{
+					"sasuffixes": "lh",
+					"sku": "Standard_RAGRS",
+					"allowBlobPublicAccess": false,
+					"allowCrossTenantReplication": false,
+					"minimumTlsVersion": "TLS1_2",
+					"storageContainers": {
+						"value": [
+							{
+								"name": "optimizer-audit"
+							}
+						]
+					},
+					"storageFileshares": {
+						"value": [
+							{
+								"name": "optimizer-auditing",
+								"accessTier": "TransactionOptimized",
+								"shareQuota": 5120,
+								"enabledProtocols": "SMB"
+							}
+						]
+					}
+				},
+				{
+					"sasuffixes": "nc",
+					"sku": "Standard_LRS",
+					"allowBlobPublicAccess": false,
+					"allowCrossTenantReplication": false,
+					"minimumTlsVersion": "TLS1_2",
+					"storageContainers": {
+						"value": [
+							{
+								"name": "optimizer-audit"
+							}
+						]
+					},
+					"storageFileshares": {
+						"value": [
+							{
+								"name": "optimizer-auditing",
+								"accessTier": "TransactionOptimized",
+								"shareQuota": 5120,
+								"enabledProtocols": "SMB"
+							}
+						]
+					}
+				}
+			]
+		}
+	}
+}

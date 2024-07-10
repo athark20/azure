@@ -1,0 +1,77 @@
+name: Hercules Platform Deployment
+on: 
+  workflow_dispatch:
+    inputs:
+      setEnv:
+        description: 'What env are you deploying?: [prod | dr | stage | dev]'
+        required: true
+      resourceGroupName:
+        description: 'Azure resource group name'
+        required: true
+
+        
+### THESE ARE GLOBAL VARIABLES
+env:
+  setEnv: ${{ github.event.inputs.setEnv }}
+  resourceGroupName: ${{ github.event.inputs.resourceGroupName }}
+
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest-aa
+    steps:
+    - uses: actions/checkout@v3
+    - run: |
+        az bicep build --file $GITHUB_WORKSPACE/createPlatform.bicep
+  validate: 
+    runs-on: ubuntu-latest-aa
+    needs: lint
+    steps:
+    - uses: actions/checkout@v3
+    - uses: azure/login@v1
+      with:
+        creds:  ${{ (env.setEnv == 'prod' || env.setEnv == 'dr' || env.setEnv == 'dev') && secrets.AZURE_CREDENTIALS_PROD || secrets.AZURE_CREDENTIALS_NP}}
+    - name: Run preflight validation
+      uses: azure/CLI@v1
+      with:
+         inlineScript: |
+            az deployment group validate \
+            --resource-group ${{ env.resourceGroupName }} \
+            --template-file $GITHUB_WORKSPACE/createPlatform.bicep \
+            --parameters $GITHUB_WORKSPACE/env/${{ github.event.inputs.setEnv }}/platform-parameters.json
+  preview:
+    runs-on: ubuntu-latest-aa
+    needs: [lint, validate]
+    steps:
+    - uses: actions/checkout@v3
+    - uses: azure/login@v1
+      with:
+        creds:  ${{ (env.setEnv == 'prod' || env.setEnv == 'dr' || env.setEnv == 'dev') && secrets.AZURE_CREDENTIALS_PROD || secrets.AZURE_CREDENTIALS_NP}}
+    - name: Run what-if
+      uses: azure/CLI@v1
+      with:
+         inlineScript: |
+            az deployment group what-if \
+            --resource-group ${{ env.resourceGroupName }} \
+            --template-file $GITHUB_WORKSPACE/createPlatform.bicep \
+            --parameters $GITHUB_WORKSPACE/env/${{ github.event.inputs.setEnv }}/platform-parameters.json
+  deploy:
+    runs-on: ubuntu-latest-aa
+    environment: ${{ github.event.inputs.setEnv }}
+    needs: preview
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v3
+      - uses: azure/login@v1
+        with:
+          creds:  ${{ (env.setEnv == 'prod' || env.setEnv == 'dr' || env.setEnv == 'dev') && secrets.AZURE_CREDENTIALS_PROD || secrets.AZURE_CREDENTIALS_NP}}
+      - name: Run Deploy 
+        uses: azure/CLI@v1
+        with:
+         inlineScript: |
+            az deployment group create \
+            --resource-group ${{ env.resourceGroupName }} \
+            --template-file $GITHUB_WORKSPACE/createPlatform.bicep \
+            --parameters $GITHUB_WORKSPACE/env/${{ github.event.inputs.setEnv }}/platform-parameters.json
+
+            echo "Reshold Platform Deployment Has Been Completed!!!"
