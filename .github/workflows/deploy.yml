@@ -1,0 +1,48 @@
+name: Deploy Bicep Template to Azure
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Log in to Azure
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Install Bicep CLI
+      run: |
+        curl -Lo bicep https://github.com/Azure/bicep/releases/latest/download/bicep-linux-x64
+        chmod +x ./bicep
+        sudo mv ./bicep /usr/local/bin/bicep
+
+    - name: Lint Bicep file
+      run: |
+        bicep build --file createPlatform.bicep
+
+    - name: Validate Bicep deployment
+      run: |
+        az deployment group validate \
+          --resource-group ${{ secrets.RESOURCE_GROUP }} \
+          --template-file createPlatform.bicep \
+          --parameters location=eastus productname=rm subproductname=optimizer setEnv=dev storageaccount='[{"sasuffixes":"lh","sku":"Standard_RAGRS","allowBlobPublicAccess":false,"allowCrossTenantReplication":false,"minimumTlsVersion":"TLS1_2","storageContainers":[{"name":"optimizer-audit"}],"storageFileshares":[{"name":"optimizer-auditing","accessTier":"TransactionOptimized","shareQuota":5120,"enabledProtocols":"SMB"}]},{"sasuffixes":"nc","sku":"Standard_LRS","allowBlobPublicAccess":false,"allowCrossTenantReplication":false,"minimumTlsVersion":"TLS1_2","storageContainers":[{"name":"optimizer-audit"}],"storageFileshares":[{"name":"optimizer-auditing","accessTier":"TransactionOptimized","shareQuota":5120,"enabledProtocols":"SMB"}]}]'
+
+    - name: Deploy Bicep template
+      run: |
+        az deployment group create \
+          --resource-group ${{ secrets.RESOURCE_GROUP }} \
+          --template-file createPlatform.bicep \
+          --parameters location=eastus productname=rm subproductname=optimizer setEnv=dev storageaccount='[{"sasuffixes":"lh","sku":"Standard_RAGRS","allowBlobPublicAccess":false,"allowCrossTenantReplication":false,"minimumTlsVersion":"TLS1_2","storageContainers":[{"name":"optimizer-audit"}],"storageFileshares":[{"name":"optimizer-auditing","accessTier":"TransactionOptimized","shareQuota":5120,"enabledProtocols":"SMB"}]},{"sasuffixes":"nc","sku":"Standard_LRS","allowBlobPublicAccess":false,"allowCrossTenantReplication":false,"minimumTlsVersion":"TLS1_2","storageContainers":[{"name":"optimizer-audit"}],"storageFileshares":[{"name":"optimizer-auditing","accessTier":"TransactionOptimized","shareQuota":5120,"enabledProtocols":"SMB"}]}]'
+
